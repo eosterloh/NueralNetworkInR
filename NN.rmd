@@ -1,0 +1,115 @@
+---
+title: "Neural Network from Scratch"
+author: "Erick and Denver"
+date: "2026-03-03"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+Initialization of the nueral network
+```{r}
+dense <- function(x, weights, bias, af = relu()){
+  
+  z = weights %>% x + bias
+  af(z)
+}
+
+
+
+```
+
+Activation Functions
+```{r}
+sigmoid <- function(x){
+  1/1+exp(-x)
+}
+
+#Beware of Dying relu, non negative inputs please!
+relu <- function(x){
+  max(0,x)
+}
+
+linear <- function(x){
+  x
+}
+```
+
+Loss Functions
+```{r}
+## Lets implement 3
+binary_cross_entropy <- function(){
+  
+}
+
+sparse_categorical_cross_entropy <- function(){
+  
+}
+
+mean_square_error <- function(){
+  
+}
+```
+
+Optimizer Functions
+```{r}
+adam <- function(init_learningrate = .001){
+  
+}
+
+schocastic_gradient_descent <- function(learningrate = .001){
+  
+}
+```
+
+
+Forward and Back Propagation
+```{r}
+
+```
+
+
+Training:
+```{r}
+#Do forward prop,
+# Then loss function calculation
+# Then back prop
+# Then update weights
+# do this 50 times(replicate)
+init_layers <- function(input_size = 150, layer_size = c(16,8,1)){
+  
+}
+
+train <- function(modelshape, optimizer, loss, data){
+  ## Assemble Data
+  train = data[1] %>% select()
+}
+```
+
+Initilize your model here
+```{r}
+#add data here
+#format:
+# c(dataset = iris, target = Sepal.Width, featrues = c(Petal.Length, Species))
+dat  = c(dataset = iris, target = Sepal.Width, features = c(Petal.Length, Species))
+#add model layers here
+model <- function(x, W1, b1){
+  a1 = dense(x,  W1, b1, sigmoid)
+  a2 = dense(a1, W2, b2, sigmoid)
+  a3 = dense(a2, W3, b3, linear)
+  a3
+}
+
+#add optimizer here
+optimizer = adam()
+  
+#add loss function here
+lossfun = binary_cross_entropy()
+  
+train(model, optimizer, lossfun, dat)
+```
+
+
