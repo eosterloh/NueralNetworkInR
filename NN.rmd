@@ -49,6 +49,7 @@ sparse_categorical_cross_entropy <- function(){
   
 }
 
+#Alex use this for implementing Schocastic gradient descent
 mean_square_error <- function(){
   
 }
@@ -56,10 +57,7 @@ mean_square_error <- function(){
 
 Optimizer Functions
 ```{r}
-adam <- function(init_learningrate = .001){
-  
-}
-
+#Alex do this
 schocastic_gradient_descent <- function(learningrate = .001){
   
 }
@@ -68,6 +66,9 @@ schocastic_gradient_descent <- function(learningrate = .001){
 
 Forward and Back Propagation
 ```{r}
+
+
+
 
 ```
 
@@ -104,12 +105,13 @@ model <- function(x, W1, b1){
 }
 
 #add optimizer here
-optimizer = adam()
+optimizer = schocastic_gradient_descent()
   
 #add loss function here
 lossfun = binary_cross_entropy()
   
 train(model, optimizer, lossfun, dat)
+predict()
 ```
 
 
