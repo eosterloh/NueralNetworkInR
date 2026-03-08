@@ -25,12 +25,13 @@ dense <- function(x, weights, bias, af = relu()){
 Activation Functions
 ```{r}
 sigmoid <- function(x){
-  1/1+exp(-x)
+  1/(1+exp(-x)) # it misses a bracket
 }
 
 #Beware of Dying relu, non negative inputs please!
 relu <- function(x){
-  max(0,x)
+  pmax(0,x) # should be pmax(0,1) since it isn't finding a max value
+  # among all x
 }
 
 linear <- function(x){
@@ -58,6 +59,7 @@ mean_square_error <- function(){
 Optimizer Functions
 ```{r}
 #Alex do this
+# name mispelled
 schocastic_gradient_descent <- function(learningrate = .001){
   
 }
@@ -97,11 +99,11 @@ Initilize your model here
 # c(dataset = iris, target = Sepal.Width, featrues = c(Petal.Length, Species))
 dat  = c(dataset = iris, target = Sepal.Width, features = c(Petal.Length, Species))
 #add model layers here
+# Missing parameter
 model <- function(x, W1, b1){
   a1 = dense(x,  W1, b1, sigmoid)
   a2 = dense(a1, W2, b2, sigmoid)
   a3 = dense(a2, W3, b3, linear)
-  a3
 }
 
 #add optimizer here
