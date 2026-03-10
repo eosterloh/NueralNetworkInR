@@ -9,65 +9,85 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-
-Initialization of the nueral network
 ```{r}
-dense <- function(x, weights, bias, af = relu()){
-  
-  z = weights %>% x + bias
-  af(z)
-}
-
-
-
+library(tidyverse)
 ```
+
+
 
 Activation Functions
 ```{r}
 sigmoid <- function(x){
-  1/1+exp(-x)
+  
 }
 
 #Beware of Dying relu, non negative inputs please!
 relu <- function(x){
-  max(0,x)
+  if (x >= 0){
+    x
+  }else {
+    0
+  }
 }
 
 linear <- function(x){
-  x
+  
 }
 ```
 
 Loss Functions
 ```{r}
-## Lets implement 3
-binary_cross_entropy <- function(){
+
+binary_cross_entropy <- function(Y, preds){
   
 }
 
-sparse_categorical_cross_entropy <- function(){
+sparse_categorical_cross_entropy <- function(Y,preds){
   
 }
 
-#Alex use this for implementing Schocastic gradient descent
-mean_square_error <- function(){
+
+mean_square_error <- function(Y,preds){
   
 }
 ```
 
 Optimizer Functions
 ```{r}
-#Alex do this
-schocastic_gradient_descent <- function(learningrate = .001){
-  
-}
 ```
 
 
 Forward and Back Propagation
 ```{r}
 
+forwardprop <- function(X,model){
+  A = X
+  for (i in 1:length(model)){
+    Z = (A%*%(model[[i]]$W)) %>% as.numeric()
+    Z = Z + model[[i]]$B
+    
+    if(model[[i]]$activation == "sigmoid"){
+      A_next = sigmoid(Z)
+    }else{
+      A_next = relu(Z)
+    }
+    
+    model[[i]]$cache = list(a_prev = A, z = Z, a_next = a_next)
+    A = A_next
+  }
+}
 
+backwardsprop <- function(){
+  
+}
+
+
+update_params <- function(gradients, model, lr){
+  for (i in 1:length(model)){
+    model[[i]]$W =  model[[i]]$W - gradients[[i]]$derW * lr
+    model[[i]]$B = model[[i]]$B - gradients[[i]]$derB * lr
+  }
+}
 
 
 ```
@@ -75,43 +95,58 @@ Forward and Back Propagation
 
 Training:
 ```{r}
-#Do forward prop,
-# Then loss function calculation
-# Then back prop
-# Then update weights
-# do this 50 times(replicate)
-init_layers <- function(input_size = 150, layer_size = c(16,8,1)){
-  
+makelayer <- function(inputsize, outputsize, actfunc = "sigmoid"){
+  if (actfunc == "relu"){
+    scale = sqrt(2/inputsize)
+  }else{
+    scale = sqrt(1/inputsize)
+  }
+  list(W = matrix(rnorm(inputsize *outputsize,mean = 0, sd = scale), nrow = inputsize, ncol = outputsize), B = matrix(0, nrow = 1, ncol = outputsize), activation = actfunc, storage =list())
 }
 
-train <- function(modelshape, optimizer, loss, data){
-  ## Assemble Data
-  train = data[1] %>% select()
+
+buildmodel <- function(dims){
+  ldims <- dims %>% length
+  model <- list()
+  for (i in 1:(ldims-1)){
+    if (i== ldims-1){
+      cur <- makelayer(dims[i], dims[i+1], actfunc = "relu")
+      model[[i]] = cur
+    }else{
+      cur <- makelayer(dims[i], dims[i+1], actfunc = "sigmoid")
+      model[[i]] = cur
+    }
+  }
+  model
 }
 ```
 
 Initilize your model here
 ```{r}
-#add data here
-#format:
-# c(dataset = iris, target = Sepal.Width, featrues = c(Petal.Length, Species))
-dat  = c(dataset = iris, target = Sepal.Width, features = c(Petal.Length, Species))
-#add model layers here
-model <- function(x, W1, b1){
-  a1 = dense(x,  W1, b1, sigmoid)
-  a2 = dense(a1, W2, b2, sigmoid)
-  a3 = dense(a2, W3, b3, linear)
-  a3
+train <- function(X,Y, model, lossfun, learningrate = 0.01){
+  predictions <- forwardprop(X, model)
+  
+  if (lossfun =="bce"){
+    binary_cross_entropy(predictions, Y)
+  }else{
+    mean_square_error(predictions, Y)
+  }
+  
+  gradientres <- backpropogation(Y,predictions,model)
+  
+  update_parameters(model, predictions, learningrate)
 }
 
-#add optimizer here
-optimizer = schocastic_gradient_descent()
+#4 input features
+# model dims must be a c()
+modeldimension = c(4,16,8, 1)
+model = buildmodel(modeldimension)
+
+data = 
   
-#add loss function here
-lossfun = binary_cross_entropy()
-  
-train(model, optimizer, lossfun, dat)
-predict()
+epochs = 500
+replicate(epochs, train(X,Y,model, "bce"))
+forwardprop(X_test, model)
 ```
 
 
