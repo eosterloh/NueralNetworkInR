@@ -1,6 +1,6 @@
 ---
 title: "Neural Network from Scratch"
-author: "Erick and Denver"
+author: "Erick Alex and Denver"
 date: "2026-03-03"
 output: html_document
 ---
@@ -11,6 +11,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r}
 library(tidyverse)
+library(caret)
 ```
 
 
@@ -18,75 +19,120 @@ library(tidyverse)
 Activation Functions
 ```{r}
 sigmoid <- function(x){
-  
+  1 / (1 + exp(-x))
 }
 
 #Beware of Dying relu, non negative inputs please!
 relu <- function(x){
-  if (x >= 0){
-    x
-  }else {
-    0
-  }
+  pmax(x,0)
 }
 
 linear <- function(x){
-  
+  x
+}
+
+softmax <- function(x){
+  res = exp(x) / rowSums(exp(x))
+  res
 }
 ```
 
 Loss Functions
 ```{r}
-
-binary_cross_entropy <- function(Y, preds){
-  
-}
-
-sparse_categorical_cross_entropy <- function(Y,preds){
-  
+sparse_categorical_cross_entropy <- function(preds,Y){
+  n <- nrow(Y)
+  -(sum(log(preds[cbind(1:n, as.vector(Y) + 1)] + .00000001))) / n #do some funny stuff here to avoid log(0)
 }
 
 
-mean_square_error <- function(Y,preds){
-  
+mean_square_error <- function(preds,Y){
+  n = nrow(Y)
+  MSE = sum((Y - preds)^2)/(2*n)
+  MSE
 }
 ```
-
-Optimizer Functions
-```{r}
-```
-
 
 Forward and Back Propagation
 ```{r}
-
 forwardprop <- function(X,model){
   A = X
+  m = nrow(A)
   for (i in 1:length(model)){
-    Z = (A%*%(model[[i]]$W)) %>% as.numeric()
-    Z = Z + model[[i]]$B
+    ones_shaping = matrix(1, nrow = m, ncol = 1)
+    biasmatrix = ones_shaping %*%  model[[i]]$B
+    # Z = x * w + b
+    Z = (A%*%(model[[i]]$W)) + biasmatrix
     
     if(model[[i]]$activation == "sigmoid"){
       A_next = sigmoid(Z)
+    }else if(model[[i]]$activation == "linear"){
+      A_next = linear(Z)
+    }else if(model[[i]]$activation == "softmax"){
+      A_next = softmax(Z)
     }else{
       A_next = relu(Z)
     }
     
-    model[[i]]$cache = list(a_prev = A, z = Z, a_next = a_next)
+    model[[i]]$cache = list(a_prev = A, z = Z, a_next = A_next)
     A = A_next
   }
+  list(preds = A, model = model)
 }
 
-backwardsprop <- function(){
+backpropogation <- function(Y,preds,model,lossfun="mse"){
+  gradients <- vector("list",length(model))
+  n <- nrow(Y)
   
+  dZ = 0
+  dA = 0
+  for (i in length(model):1){
+    layer <- model[[i]]
+    A_prev <- layer$cache$a_prev
+    Z <- layer$cache$z
+    A_next <- layer$cache$a_next
+    skipactdZ = FALSE
+    if (i == length(model)){
+      if (lossfun == "mse"){
+        dA <- (preds - Y)/n
+      } else if (lossfun == "sce"){
+        one_hot <- matrix(0, nrow=n, ncol=ncol(preds))
+        one_hot[cbind(1:n, Y + 1)] <- 1 #cbind is sort of like bind cols for matrices
+        skipactdZ =TRUE
+        dZ <- (preds - one_hot) / n
+      }else {
+        stop("invalid loss function")
+      }
+    } else {
+      dA <- dZ %*% t(model[[i+1]]$W)
+    }
+    
+    if (skipactdZ == FALSE){
+      if (layer$activation == "sigmoid"){
+        dZ <- dA * (A_next * (1-A_next))
+      } else if (layer$activation == "relu"){
+        dZ <- dA * (Z > 0)
+      } else if (layer$activation == "linear"){
+        dZ <- dA
+      } else if(layer$activation == "softmax"){
+        dZ <- dA #done earlier, okay to ignore
+      } else {
+        stop("Invalid activation function")
+      }
+    }
+    dW <- t(A_prev) %*% dZ
+    dB <- matrix(apply(dZ, 2, sum), nrow = 1)
+    
+    gradients[[i]] <- list(dw = dW, db = dB)
+  }
+  gradients
 }
-
 
 update_params <- function(gradients, model, lr){
   for (i in 1:length(model)){
-    model[[i]]$W =  model[[i]]$W - gradients[[i]]$derW * lr
-    model[[i]]$B = model[[i]]$B - gradients[[i]]$derB * lr
+    model[[i]]$W =  model[[i]]$W - gradients[[i]]$dw * lr
+    model[[i]]$B = model[[i]]$B - gradients[[i]]$db * lr
   }
+  model
 }
 
 
@@ -110,7 +156,7 @@ buildmodel <- function(dims){
   model <- list()
   for (i in 1:(ldims-1)){
     if (i== ldims-1){
-      cur <- makelayer(dims[i], dims[i+1], actfunc = "relu")
+      cur <- makelayer(dims[i], dims[i+1], actfunc = "softmax")
       model[[i]] = cur
     }else{
       cur <- makelayer(dims[i], dims[i+1], actfunc = "sigmoid")
@@ -123,30 +169,173 @@ buildmodel <- function(dims){
 
 Initilize your model here
 ```{r}
-train <- function(X,Y, model, lossfun, learningrate = 0.01){
-  predictions <- forwardprop(X, model)
+train <- function(X,Y, model, lossfun, learningrate = 0.1){
+  fp <- forwardprop(X, model)
+  predictions <- fp$preds 
+  curmodel <- fp$model
   
+  loss <- 0
   if (lossfun =="bce"){
-    binary_cross_entropy(predictions, Y)
+    loss = binary_cross_entropy(predictions, Y)
+  }else if(lossfun == "sce"){
+    loss = sparse_categorical_cross_entropy(predictions, Y)
   }else{
-    mean_square_error(predictions, Y)
+    loss =mean_square_error(predictions, Y)
   }
   
-  gradientres <- backpropogation(Y,predictions,model)
+  gradientres <- backpropogation(Y,predictions,curmodel, lossfun)
   
-  update_parameters(model, predictions, learningrate)
+  curmodel = update_params(gradientres,curmodel, learningrate)
+  list(model = curmodel, loss = loss)
 }
 
-#4 input features
-# model dims must be a c()
-modeldimension = c(4,16,8, 1)
-model = buildmodel(modeldimension)
-
-data = 
-  
-epochs = 500
-replicate(epochs, train(X,Y,model, "bce"))
-forwardprop(X_test, model)
 ```
 
+
+```{r}
+set.seed(19)
+X <- as.matrix(scale(iris[, 1:4]))
+Y <- matrix(as.numeric(iris$Species) - 1, ncol = 1) #as numeric makes it 1-3, we want is 0-2
+index <- createDataPartition(iris$Species, p = 0.8, list = FALSE)
+
+
+x_tr = X[index, ]
+y_tr = Y[index, , drop = FALSE]
+
+x_tt = X[-index, ]
+y_tt = Y[-index, , drop = FALSE]
+
+modeldimension <- c(4, 8, 4, 3)
+
+# model dims must be a c()
+#modeldimension = c(2, 4, 1)
+model = buildmodel(modeldimension)
+
+
+epochs = 10000
+losses <- tibble(epoch = numeric(), loss = numeric())
+for(epoch in 1:epochs){
+  result <- train(x_tr, y_tr, model, "sce")
+  model <- result$model
+  losses <- losses %>% add_row(epoch = epoch, loss = result$loss)
+}
+
+losses %>% ggplot(aes(x = epoch, y = loss)) +
+  geom_line() +
+  xlab("Epoch") + ylab("Loss") +
+  theme_minimal()
+
+
+fp_test <- forwardprop(x_tt, model)
+predicted <- max.col(fp_test$preds) - 1
+actual    <- as.vector(y_tt)
+accuracynn <- mean(predicted == actual)
+
+accuracynn
+```
+
+```{r}
+
+buildmodel1 <- function(dims){
+  ldims <- dims %>% length
+  model <- list()
+  for (i in 1:(ldims-1)){
+    if (i== ldims-1){
+      cur <- makelayer(dims[i], dims[i+1], actfunc = "linear")
+      model[[i]] = cur
+    }else{
+      cur <- makelayer(dims[i], dims[i+1], actfunc = "sigmoid")
+      model[[i]] = cur
+    }
+  }
+  model
+}
+
+X = matrix(c(0,0, 0,1, 1,0, 1,1), ncol = 2, byrow = TRUE)
+Y = matrix(c(0,1,1,0), ncol = 1)
+  
+modeldimension <- c(2, 8, 4, 1)
+
+# model dims must be a c()
+#modeldimension = c(2, 4, 1)
+model = buildmodel1(modeldimension)
+
+
+epochs = 10000
+losses <- tibble(epoch = numeric(), loss = numeric())
+for(epoch in 1:epochs){
+  result <- train(X, Y, model, "mse")
+  model <- result$model
+  losses <- losses %>% add_row(epoch = epoch, loss = result$loss)
+}
+
+losses %>% ggplot(aes(x = epoch, y = loss)) +
+  geom_line() +
+  xlab("Epoch") + ylab("Loss") +
+  theme_minimal()
+
+fp_test <- forwardprop(X, model)
+predicted <- fp_test$preds
+actual <- Y
+predicted
+mse <- mean_square_error(predicted, actual)
+mse
+```
+
+
+```{r}
+set.seed(831)
+X <- as.matrix(scale(mtcars[, c("mpg","cyl","disp","hp","wt")]))
+Y <- matrix(mtcars$am, ncol = 1)
+
+index <- createDataPartition(mtcars$am, p = 0.8, list = FALSE)
+
+xt = X[index, ]
+yt= Y[index, , drop = FALSE]
+xtt = X[-index, ]
+ytt = Y[-index, , drop = FALSE]
+
+modeldimensions <- c(5, 8, 4, 1)
+
+# model dims must be a c()
+#modeldimension = c(2, 4, 1)
+model = buildmodel1(modeldimensions)
+
+
+epochs = 10000
+losses <- tibble(epoch = numeric(), loss = numeric())
+for(epoch in 1:epochs){
+  result <- train(xt, yt, model, "mse")
+  model <- result$model
+  losses <- losses %>% add_row(epoch = epoch, loss = result$loss)
+}
+
+losses %>% ggplot(aes(x = epoch, y = loss)) +
+  geom_line() +
+  xlab("Epoch") + ylab("Loss") +
+  theme_minimal()
+
+
+
+
+fp_test <- forwardprop(xtt, model)
+predicted <- round(fp_test$preds)
+actual    <- as.vector(ytt)
+accuracynn <- mean(predicted == actual)
+
+accuracynn
+
+#GLM
+X_tr <- as.data.frame(X[index, ])
+X_tr$am <- as.vector(yt)
+X_tt <- as.data.frame(X[-index, ])
+X_tt$am <- as.vector(ytt)
+
+#GLM trained in super wierd way because we had to scale X at the beginning of this code block.
+glm_model <- glm(am ~ ., data = X_tr, family = binomial(link = "logit"))
+glm_pred <- round(predict(glm_model, X_tt, type = "response"))
+accuracyglm <- mean(glm_pred == as.vector(ytt))
+accuracyglm
+
+```
 
